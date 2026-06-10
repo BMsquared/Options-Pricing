@@ -589,7 +589,7 @@ def main():
         st.markdown("---")
         #r_pct = st.slider("Risk-Free Rate (%)", 1.0, 10.0, 5.0, 0.25)
         R = 5 / 100
-        max_exp = 8
+        max_exp = 5
 
         st.markdown("---")
         # Data source info
