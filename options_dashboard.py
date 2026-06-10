@@ -989,7 +989,7 @@ def main():
                    .applymap(dir_color, subset=["Dir"])
                    .set_properties(**{"background-color":"#1a1d27","color":"#e8eaf0",
                                       "border":"1px solid #2d3148"}),
-                width="stretch"True, height=500,
+                width="stretch", height=500,
             )
             st.caption(f"{len(pf['orders'])} total orders")
 
