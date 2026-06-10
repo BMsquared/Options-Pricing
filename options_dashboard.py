@@ -702,10 +702,12 @@ def main():
             ch1, ch2 = st.columns(2)
             with ch1:
                 st.plotly_chart(chart_price_comparison(df_exp, sel_otype, spot),
-                                width="stretch")
+                                width="stretch",
+                                key=f"t1_price_cmp_{symbol}_{sel_exp}_{sel_otype}")
             with ch2:
                 st.plotly_chart(chart_diff(df_exp, sel_otype, spot),
-                                width="stretch")
+                                width="stretch",
+                                key=f"t1_diff_{symbol}_{sel_exp}_{sel_otype}")
 
             st.markdown("#### Detailed Comparison Table")
             show_cols = ["Strike", "Moneyness", "Mkt Bid", "Mkt Ask", "Mkt Mid",
@@ -820,22 +822,25 @@ def main():
         with r1:
             st.plotly_chart(chart_price_comparison(df_c, chart_otype, spot),
                             width="stretch",
-                            key=f"price_comparison_{ticker}_{selected_expiry}")
+                            key=f"t3_price_cmp_{symbol}_{chart_exp}_{chart_otype}")
         with r2:
             st.plotly_chart(chart_iv_skew(df, spot),
-                            width="stretch")
+                            width="stretch",
+                            key=f"t3_iv_skew_{symbol}_{chart_exp}")
 
         r3, r4 = st.columns(2)
         with r3:
             st.plotly_chart(chart_diff(df_c, chart_otype, spot),
-                            width="stretch")
+                            width="stretch",
+                            key=f"t3_diff_{symbol}_{chart_exp}_{chart_otype}")
         with r4:
             st.plotly_chart(chart_greeks(df, greek_pick, chart_otype, spot),
-                            width="stretch")
+                            width="stretch",
+                            key=f"t3_greeks_{symbol}_{chart_exp}_{chart_otype}_{greek_pick}")
 
         fig_hist = chart_stock_history(symbol)
         if fig_hist:
-            st.plotly_chart(fig_hist, width="stretch")
+            st.plotly_chart(fig_hist, width="stretch", key=f"t3_hist_{symbol}")
 
     # ════════════════════════════════════════════════
     # TAB 4 — TRADE
@@ -925,7 +930,7 @@ def main():
 
             st.dataframe(
                 dfp.style
-                   .applymap(pnl_color, subset=["UnrPnL","PnLPct"])
+                   .map(pnl_color, subset=["UnrPnL","PnLPct"])
                    .format({"AvgPx":"${:.3f}","CurPx":"${:.3f}",
                              "MktVal":"${:,.2f}","UnrPnL":"${:+,.2f}","PnLPct":"{:+.1f}%"})
                    .set_properties(**{"background-color":"#1a1d27","color":"#e8eaf0",
@@ -986,7 +991,7 @@ def main():
 
             st.dataframe(
                 dfo.rename(columns=rename)[list(rename.values())].style
-                   .applymap(dir_color, subset=["Dir"])
+                   .map(dir_color, subset=["Dir"])
                    .set_properties(**{"background-color":"#1a1d27","color":"#e8eaf0",
                                       "border":"1px solid #2d3148"}),
                 width="stretch", height=500,
