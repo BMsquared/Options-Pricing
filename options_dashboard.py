@@ -714,7 +714,7 @@ def main():
                          "Delta", "Gamma", "Theta", "Volume", "Open Interest"]
 
             styled = df_exp[show_cols].style \
-                .applymap(style_diff, subset=["BS − Mkt", "Heston − Mkt", "BS − Heston"]) \
+                .map(style_diff, subset=["BS − Mkt", "Heston − Mkt", "BS − Heston"]) \
                 .format({
                     "Strike":       "${:.0f}",
                     "Moneyness":    "{:.3f}",
@@ -775,7 +775,7 @@ def main():
 
         styled2 = dv[show].style \
             .apply(style_itm, axis=1) \
-            .applymap(style_diff, subset=["BS − Mkt","Heston − Mkt"]) \
+            .map(style_diff, subset=["BS − Mkt","Heston − Mkt"]) \
             .format({
                 "Strike":       "${:.0f}",
                 "Moneyness":    "{:.3f}",
