@@ -549,108 +549,108 @@ def chart_stock_history(symbol: str):
     return fig
     
     
-    def chart_vol_surface(df, spot):
-        """3D volatility surface — BS and Heston side by side."""
-        from plotly.subplots import make_subplots
+def chart_vol_surface(df, spot):
+    """3D volatility surface — BS and Heston side by side."""
+    from plotly.subplots import make_subplots
 
-        calls = df[df["Type"] == "CALL"].copy()
-        calls = calls.dropna(subset=["Mkt IV (%)"])
-        if calls.empty:
-            return None
+    calls = df[df["Type"] == "CALL"].copy()
+    calls = calls.dropna(subset=["Mkt IV (%)"])
+    if calls.empty:
+        return None
 
-        # Get unique strikes and expiries
-        strikes  = sorted(calls["Strike"].unique())
-        expiries = sorted(calls["Expiry"].unique())
+    # Get unique strikes and expiries
+    strikes  = sorted(calls["Strike"].unique())
+    expiries = sorted(calls["Expiry"].unique())
 
-        # Build Z matrices for BS and Heston implied vol
-        # We back out Heston IV from Heston Price using the implied_vol function
-        bs_z     = []
-        heston_z = []
+    # Build Z matrices for BS and Heston implied vol
+    # We back out Heston IV from Heston Price using the implied_vol function
+    bs_z     = []
+    heston_z = []
 
-        for exp in expiries:
-            bs_row     = []
-            heston_row = []
-            exp_data   = calls[calls["Expiry"] == exp]
+    for exp in expiries:
+        bs_row     = []
+        heston_row = []
+        exp_data   = calls[calls["Expiry"] == exp]
 
-            for K in strikes:
-                row = exp_data[exp_data["Strike"] == K]
-                if row.empty:
-                    bs_row.append(np.nan)
-                    heston_row.append(np.nan)
-                else:
-                    r         = row.iloc[0]
-                    T         = max(r["DTE"] / 365, 1/365)
-                    bs_row.append(r["BS IV (%)"])
+        for K in strikes:
+            row = exp_data[exp_data["Strike"] == K]
+            if row.empty:
+                bs_row.append(np.nan)
+                heston_row.append(np.nan)
+            else:
+                r         = row.iloc[0]
+                T         = max(r["DTE"] / 365, 1/365)
+                bs_row.append(r["BS IV (%)"])
 
-                    # Back out Heston IV from Heston price
-                    heston_iv = implied_vol(r["Heston Price"], spot, K, T, 0.05, "call")
-                    heston_row.append(heston_iv * 100 if not np.isnan(heston_iv) else np.nan)
+                # Back out Heston IV from Heston price
+                heston_iv = implied_vol(r["Heston Price"], spot, K, T, 0.05, "call")
+                heston_row.append(heston_iv * 100 if not np.isnan(heston_iv) else np.nan)
 
-            bs_z.append(bs_row)
-            heston_z.append(heston_row)
+        bs_z.append(bs_row)
+        heston_z.append(heston_row)
 
-        bs_z     = np.array(bs_z,     dtype=float)
-        heston_z = np.array(heston_z, dtype=float)
+    bs_z     = np.array(bs_z,     dtype=float)
+    heston_z = np.array(heston_z, dtype=float)
 
-        # Build side-by-side subplots
-        fig = make_subplots(
-            rows=1, cols=2,
-            subplot_titles=("Black-Scholes IV Surface", "Heston IV Surface"),
-            specs=[[{"type": "surface"}, {"type": "surface"}]],
-            horizontal_spacing=0.05,
-        )
+    # Build side-by-side subplots
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Black-Scholes IV Surface", "Heston IV Surface"),
+        specs=[[{"type": "surface"}, {"type": "surface"}]],
+        horizontal_spacing=0.05,
+    )
 
-        # Shared colorscale
-        colorscale = [
-            [0.0,  "#0d1b4b"],
-            [0.25, "#1a3a8f"],
-            [0.5,  "#4f8ef7"],
-            [0.75, "#b07eff"],
-            [1.0,  "#ff4d6a"],
-        ]
+    # Shared colorscale
+    colorscale = [
+        [0.0,  "#0d1b4b"],
+        [0.25, "#1a3a8f"],
+        [0.5,  "#4f8ef7"],
+        [0.75, "#b07eff"],
+        [1.0,  "#ff4d6a"],
+    ]
 
-        fig.add_trace(go.Surface(
-            x=strikes, y=expiries, z=bs_z,
-            colorscale=colorscale,
-            showscale=False,
-            opacity=0.9,
-            name="BS Surface",
-        ), row=1, col=1)
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=bs_z,
+        colorscale=colorscale,
+        showscale=False,
+        opacity=0.9,
+        name="BS Surface",
+    ), row=1, col=1)
 
-        fig.add_trace(go.Surface(
-            x=strikes, y=expiries, z=heston_z,
-            colorscale=colorscale,
-            showscale=True,
-            colorbar=dict(
-                title="IV (%)",
-                titlefont=dict(color="#e8eaf0"),
-                tickfont=dict(color="#e8eaf0"),
-                x=1.02,
-            ),
-            opacity=0.9,
-            name="Heston Surface",
-        ), row=1, col=2)
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=heston_z,
+        colorscale=colorscale,
+        showscale=True,
+        colorbar=dict(
+            title="IV (%)",
+            titlefont=dict(color="#e8eaf0"),
+            tickfont=dict(color="#e8eaf0"),
+            x=1.02,
+        ),
+        opacity=0.9,
+        name="Heston Surface",
+    ), row=1, col=2)
 
-        fig.update_layout(
-            title="Implied Volatility Surface — Black-Scholes vs Heston",
-            paper_bgcolor="#0f1117",
-            plot_bgcolor="#1a1d27",
-            font=dict(color="#e8eaf0", size=11),
-            height=550,
-            margin=dict(l=10, r=10, t=60, b=10),
-            legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
-            scene=dict(
-                xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-                yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-                zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-            ),
-            scene2=dict(
-                xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-                yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-                zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
-            ),
-        )
-        return fig
+    fig.update_layout(
+        title="Implied Volatility Surface — Black-Scholes vs Heston",
+        paper_bgcolor="#0f1117",
+        plot_bgcolor="#1a1d27",
+        font=dict(color="#e8eaf0", size=11),
+        height=550,
+        margin=dict(l=10, r=10, t=60, b=10),
+        legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
+        scene=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+        ),
+        scene2=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+        ),
+    )
+    return fig
 
 
 # ─────────────────────────────────────────────────────────────
