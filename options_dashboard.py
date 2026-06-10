@@ -71,8 +71,8 @@ PLOTLY_LAYOUT = dict(
     paper_bgcolor="#0f1117",
     plot_bgcolor="#1a1d27",
     font=dict(color="#e8eaf0", size=11),
-    xaxis=dict(gridcolor="#2d3148", zerolinecolor="#2d3148"),
-    yaxis=dict(gridcolor="#2d3148", zerolinecolor="#2d3148"),
+    xaxis=dict(gridcolor="#2d3148", zerolinecolor="#2d3148", fixedrange=True),
+    yaxis=dict(gridcolor="#2d3148", zerolinecolor="#2d3148", fixedrange=True),
     margin=dict(l=50, r=20, t=40, b=40),
     legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
 )
@@ -547,6 +547,110 @@ def chart_stock_history(symbol: str):
     fig.update_layout(title=f"{symbol} — Price History (from saved data)",
                       xaxis_rangeslider_visible=False, **PLOTLY_LAYOUT)
     return fig
+    
+    
+    def chart_vol_surface(df, spot):
+    """3D volatility surface — BS and Heston side by side."""
+    from plotly.subplots import make_subplots
+
+    calls = df[df["Type"] == "CALL"].copy()
+    calls = calls.dropna(subset=["Mkt IV (%)"])
+    if calls.empty:
+        return None
+
+    # Get unique strikes and expiries
+    strikes  = sorted(calls["Strike"].unique())
+    expiries = sorted(calls["Expiry"].unique())
+
+    # Build Z matrices for BS and Heston implied vol
+    # We back out Heston IV from Heston Price using the implied_vol function
+    bs_z     = []
+    heston_z = []
+
+    for exp in expiries:
+        bs_row     = []
+        heston_row = []
+        exp_data   = calls[calls["Expiry"] == exp]
+
+        for K in strikes:
+            row = exp_data[exp_data["Strike"] == K]
+            if row.empty:
+                bs_row.append(np.nan)
+                heston_row.append(np.nan)
+            else:
+                r         = row.iloc[0]
+                T         = max(r["DTE"] / 365, 1/365)
+                bs_row.append(r["BS IV (%)"])
+
+                # Back out Heston IV from Heston price
+                heston_iv = implied_vol(r["Heston Price"], spot, K, T, 0.05, "call")
+                heston_row.append(heston_iv * 100 if not np.isnan(heston_iv) else np.nan)
+
+        bs_z.append(bs_row)
+        heston_z.append(heston_row)
+
+    bs_z     = np.array(bs_z,     dtype=float)
+    heston_z = np.array(heston_z, dtype=float)
+
+    # Build side-by-side subplots
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Black-Scholes IV Surface", "Heston IV Surface"),
+        specs=[[{"type": "surface"}, {"type": "surface"}]],
+        horizontal_spacing=0.05,
+    )
+
+    # Shared colorscale
+    colorscale = [
+        [0.0,  "#0d1b4b"],
+        [0.25, "#1a3a8f"],
+        [0.5,  "#4f8ef7"],
+        [0.75, "#b07eff"],
+        [1.0,  "#ff4d6a"],
+    ]
+
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=bs_z,
+        colorscale=colorscale,
+        showscale=False,
+        opacity=0.9,
+        name="BS Surface",
+    ), row=1, col=1)
+
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=heston_z,
+        colorscale=colorscale,
+        showscale=True,
+        colorbar=dict(
+            title="IV (%)",
+            titlefont=dict(color="#e8eaf0"),
+            tickfont=dict(color="#e8eaf0"),
+            x=1.02,
+        ),
+        opacity=0.9,
+        name="Heston Surface",
+    ), row=1, col=2)
+
+    fig.update_layout(
+        title="Implied Volatility Surface — Black-Scholes vs Heston",
+        paper_bgcolor="#0f1117",
+        plot_bgcolor="#1a1d27",
+        font=dict(color="#e8eaf0", size=11),
+        height=550,
+        margin=dict(l=10, r=10, t=60, b=10),
+        legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
+        scene=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+        ),
+        scene2=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+        ),
+    )
+    return fig
 
 
 # ─────────────────────────────────────────────────────────────
@@ -804,7 +908,7 @@ def main():
         st.dataframe(styled2, width="stretch", height=520)
         st.caption(f"{len(dv)} contracts  |  ITM rows highlighted green")
 
-    # ════════════════════════════════════════════════
+# ════════════════════════════════════════════════
     # TAB 3 — CHARTS
     # ════════════════════════════════════════════════
     with t3:
@@ -817,6 +921,7 @@ def main():
 
         df_c = df[(df["Expiry"] == chart_exp)].copy()
 
+        # ── Row 1: Price Comparison | IV Skew ─────────────────
         r1, r2 = st.columns(2)
         with r1:
             st.plotly_chart(chart_price_comparison(df_c, chart_otype, spot),
@@ -827,6 +932,7 @@ def main():
                             width="stretch",
                             key=f"t3_iv_skew_{symbol}_{chart_exp}")
 
+        # ── Row 2: Model Diff | Greeks ─────────────────────────
         r3, r4 = st.columns(2)
         with r3:
             st.plotly_chart(chart_diff(df_c, chart_otype, spot),
@@ -837,9 +943,22 @@ def main():
                             width="stretch",
                             key=f"t3_greeks_{symbol}_{chart_exp}_{chart_otype}_{greek_pick}")
 
+        # ── Row 3: Price History ───────────────────────────────
         fig_hist = chart_stock_history(symbol)
         if fig_hist:
             st.plotly_chart(fig_hist, width="stretch", key=f"t3_hist_{symbol}")
+
+        # ── Row 4: Volatility Surface ──────────────────────────
+        st.markdown("<div class='section-header'>Implied Volatility Surface — Black-Scholes vs Heston</div>",
+                    unsafe_allow_html=True)
+        st.caption("Rotate the surface by clicking and dragging. Shows how IV changes across strikes and expiries.")
+
+        fig_surface = chart_vol_surface(df, spot)
+        if fig_surface:
+            st.plotly_chart(fig_surface, width="stretch", key=f"t3_vol_surface_{symbol}")
+        else:
+            st.info("Not enough data to render volatility surface. Try loading more expiries.")
+            
 
     # ════════════════════════════════════════════════
     # TAB 4 — TRADE
