@@ -649,7 +649,7 @@ def main():
         ("CONTRACTS", str(len(df)),                ""),
         ("POSITIONS", str(len(pf["positions"])),   ""),
     ]
-    for col, (title, val, cls) in zip([c1,c2,c3,c4,c5,c6], metrics):
+    for col, (title, val, cls) in zip([c1,c2,c3,c4,c5], metrics):
         col.markdown(f"""
         <div class='metric-card'>
             <div class='metric-title'>{title}</div>
