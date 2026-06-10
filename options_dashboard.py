@@ -1,7 +1,7 @@
 """
 Options Market Dashboard — Streamlit Version
 =============================================
-Live US stock data + Real Option Chain from Yahoo Finance
+Data loaded from GitHub CSV files (no live yfinance API calls)
 Models: Black-Scholes (1973) | Heston (1993)
 Compares model prices vs real market prices (bid/ask/last)
 
@@ -21,20 +21,13 @@ from scipy.stats import norm
 from scipy.optimize import brentq
 import plotly.graph_objects as go
 import plotly.express as px
-import yfinance as yf
 
+# ─────────────────────────────────────────────────────────────
+# GITHUB DATA CONFIG
+# ─────────────────────────────────────────────────────────────
 
-import time
+GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/data"
 
-@st.cache_data(ttl=600)
-def get_ticker_data(ticker):
-    time.sleep(1)  # small delay to avoid rate limits
-    stock = yf.Ticker(ticker)
-    return {
-        "expiries": stock.options,
-        "price": stock.history(period="1d")["Close"].iloc[-1],
-        "info": stock.info
-    }
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
@@ -99,6 +92,93 @@ HESTON_PARAMS = {
     "JPM":  dict(kappa=2.0, theta_h=0.04, xi=0.35, rho=-0.45),
 }
 DEFAULT_HESTON = dict(kappa=2.0, theta_h=0.06, xi=0.40, rho=-0.50)
+
+
+# ─────────────────────────────────────────────────────────────
+# GITHUB DATA LOADERS
+# ─────────────────────────────────────────────────────────────
+
+@st.cache_data(show_spinner=False)
+def load_price_history(symbol: str) -> pd.DataFrame | None:
+    """Load price history CSV from GitHub."""
+    url = f"{GITHUB_BASE}/{symbol}_price_history.csv"
+    try:
+        df = pd.read_csv(url, index_col=0, parse_dates=True)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df = df.loc[:, ~df.columns.duplicated()]
+        return df
+    except Exception as e:
+        st.warning(f"Could not load price history for {symbol}: {e}")
+        return None
+
+@st.cache_data(show_spinner=False)
+def load_expiries(symbol: str) -> list:
+    """Load available expiry dates from GitHub index CSV."""
+    url = f"{GITHUB_BASE}/options/{symbol}_expiries.csv"
+    try:
+        df = pd.read_csv(url)
+        return sorted(df["expiry"].tolist())
+    except Exception as e:
+        st.warning(f"Could not load expiries for {symbol}: {e}")
+        return []
+
+@st.cache_data(show_spinner=False)
+def load_option_chain(symbol: str, expiry: str) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+    """Load calls and puts CSVs from GitHub for a given expiry."""
+    calls_url = f"{GITHUB_BASE}/options/{symbol}_calls_{expiry}.csv"
+    puts_url  = f"{GITHUB_BASE}/options/{symbol}_puts_{expiry}.csv"
+    try:
+        calls = pd.read_csv(calls_url)
+        puts  = pd.read_csv(puts_url)
+        return calls, puts
+    except Exception as e:
+        st.warning(f"Could not load option chain for {symbol} {expiry}: {e}")
+        return None, None
+
+
+# ─────────────────────────────────────────────────────────────
+# SPOT & VOL FROM SAVED PRICE HISTORY
+# ─────────────────────────────────────────────────────────────
+
+def safe_float(val, default=np.nan):
+    try:
+        f = float(val)
+        return f if np.isfinite(f) else default
+    except Exception:
+        return default
+
+def get_spot_and_vol(symbol: str):
+    """Derive spot price and 30-day HV from saved CSV price history."""
+    hist = load_price_history(symbol)
+    if hist is None or hist.empty:
+        return None, None
+
+    if "Close" not in hist.columns:
+        # Try case-insensitive match
+        close_col = next((c for c in hist.columns if c.lower() == "close"), None)
+        if close_col is None:
+            return None, None
+        hist = hist.rename(columns={close_col: "Close"})
+
+    hist = hist[["Close"]].dropna().sort_index()
+    if len(hist) < 5:
+        return None, None
+
+    spot = safe_float(hist["Close"].iloc[-1])
+    if np.isnan(spot) or spot <= 0:
+        return None, None
+
+    returns = np.log(hist["Close"] / hist["Close"].shift(1)).dropna()
+    if len(returns) < 5:
+        vol = 0.25
+    else:
+        window = min(30, len(returns))
+        vol = safe_float(returns.rolling(window).std().iloc[-1] * np.sqrt(252), 0.25)
+        if np.isnan(vol) or vol <= 0:
+            vol = 0.25
+
+    return spot, vol
 
 
 # ─────────────────────────────────────────────────────────────
@@ -190,84 +270,27 @@ def heston_greeks(S, K, T, r, v0, kappa, theta_h, xi, rho, otype="call", dS=0.5)
 
 
 # ─────────────────────────────────────────────────────────────
-# DATA FETCHING  — real Yahoo Finance option chains
+# BUILD OPTION CHAIN FROM CSV FILES
 # ─────────────────────────────────────────────────────────────
 
-def safe_float(val, default=np.nan):
-    """Safely convert a value to float, returning default on failure."""
-    try:
-        f = float(val)
-        return f if np.isfinite(f) else default
-    except Exception:
-        return default
-
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch_spot_and_vol(symbol: str):
-    """Get spot price and 30-day historical vol from Yahoo Finance."""
-    try:
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="3mo", interval="1d")
-
-        if hist is None or hist.empty:
-            return None, None
-
-        # Flatten MultiIndex columns if present (newer yfinance versions)
-        if isinstance(hist.columns, pd.MultiIndex):
-            hist.columns = hist.columns.get_level_values(0)
-
-        hist = hist.loc[:, ~hist.columns.duplicated()]
-
-        if "Close" not in hist.columns:
-            return None, None
-
-        hist = hist[["Close"]].dropna().sort_index()
-        if len(hist) < 5:
-            return None, None
-
-        spot = safe_float(hist["Close"].iloc[-1])
-        if np.isnan(spot) or spot <= 0:
-            return None, None
-
-        returns = np.log(hist["Close"] / hist["Close"].shift(1)).dropna()
-        if len(returns) < 5:
-            vol = 0.25
-        else:
-            window = min(30, len(returns))
-            vol = safe_float(returns.rolling(window).std().iloc[-1] * np.sqrt(252), 0.25)
-            if np.isnan(vol) or vol <= 0:
-                vol = 0.25
-
-        return spot, vol
-    except Exception as e:
-        st.warning(f"Could not fetch spot data for {symbol}: {e}")
-        return None, None
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch_option_chain(symbol: str, r: float, max_expiries: int = 6):
+@st.cache_data(show_spinner=False)
+def build_option_chain(symbol: str, r: float, max_expiries: int = 6):
     """
-    Pull REAL option chain data from Yahoo Finance.
-    Returns a DataFrame with market prices + BS + Heston model prices.
-    Expiries are the actual ones from Yahoo (not synthetic).
+    Load saved CSV option chain data from GitHub and compute
+    BS + Heston model prices alongside market prices.
     """
-    spot, hv = fetch_spot_and_vol(symbol)
+    spot, hv = get_spot_and_vol(symbol)
     if spot is None:
         return None, None, None
 
-    try:
-        ticker  = yf.Ticker(symbol)
-        all_exp = ticker.options          # tuple of expiry strings "YYYY-MM-DD"
-    except Exception as e:
-        st.warning(f"Could not fetch option expiries for {symbol}: {e}")
+    expiries = load_expiries(symbol)
+    if not expiries:
         return None, spot, hv
 
-    if not all_exp or len(all_exp) == 0:
-        return None, spot, hv
-
-    # Pick up to max_expiries nearest expiries
+    # Limit to max_expiries nearest future expiries
     today = datetime.date.today()
     valid_exp = []
-    for e in all_exp:
+    for e in expiries:
         try:
             d = datetime.date.fromisoformat(e)
             if (d - today).days >= 1:
@@ -277,70 +300,61 @@ def fetch_option_chain(symbol: str, r: float, max_expiries: int = 6):
 
     selected_exp = valid_exp[:max_expiries]
     if not selected_exp:
-        return None, spot, hv
+        # If all expiries are past (stale data), use them anyway
+        selected_exp = expiries[:max_expiries]
 
     hp = HESTON_PARAMS.get(symbol, DEFAULT_HESTON)
     v0 = hv ** 2
     rows = []
 
     for exp_str in selected_exp:
-        exp_date = datetime.date.fromisoformat(exp_str)
-        T = max((exp_date - today).days / 365, 1/365)
-        dte = (exp_date - today).days
-
         try:
-            chain_data = ticker.option_chain(exp_str)
+            exp_date = datetime.date.fromisoformat(exp_str)
+            dte = (exp_date - today).days
+            T = max(dte / 365, 1/365)
         except Exception:
             continue
 
-        for otype, df_raw in [("call", chain_data.calls), ("put", chain_data.puts)]:
+        calls_df, puts_df = load_option_chain(symbol, exp_str)
+        if calls_df is None:
+            continue
+
+        for otype, df_raw in [("call", calls_df), ("put", puts_df)]:
             if df_raw is None or df_raw.empty:
                 continue
-
-            # Flatten MultiIndex just in case
-            if isinstance(df_raw.columns, pd.MultiIndex):
-                df_raw.columns = df_raw.columns.get_level_values(0)
 
             for _, opt_row in df_raw.iterrows():
                 K = safe_float(opt_row.get("strike"))
                 if np.isnan(K) or K <= 0:
                     continue
 
-                # Market prices
                 mkt_last = safe_float(opt_row.get("lastPrice"))
                 mkt_bid  = safe_float(opt_row.get("bid"))
                 mkt_ask  = safe_float(opt_row.get("ask"))
 
-                # Use mid if bid/ask available, else last
                 if not np.isnan(mkt_bid) and not np.isnan(mkt_ask) and mkt_ask > mkt_bid >= 0:
                     mkt_mid = (mkt_bid + mkt_ask) / 2
                 elif not np.isnan(mkt_last) and mkt_last > 0:
                     mkt_mid = mkt_last
                 else:
-                    continue  # skip options with no usable market price
+                    continue
 
                 mkt_iv_raw = safe_float(opt_row.get("impliedVolatility"))
-
-                # Market IV: use Yahoo's if available, else back out from mid
                 if not np.isnan(mkt_iv_raw) and 0.01 < mkt_iv_raw < 20:
                     mkt_iv = mkt_iv_raw
                 else:
                     mkt_iv = implied_vol(mkt_mid, spot, K, T, r, otype)
 
-                # BS model price — uses skew surface
                 sigma_bs = surface_iv(spot, K, T, hv)
                 bs_p     = bs_price(spot, K, T, r, sigma_bs, otype)
                 g_bs     = bs_greeks(spot, K, T, r, sigma_bs, otype)
 
-                # Heston model price
                 hst_p = heston_price(spot, K, T, r, v0,
-                                      hp["kappa"], hp["theta_h"],
-                                      hp["xi"],    hp["rho"], otype)
+                                     hp["kappa"], hp["theta_h"],
+                                     hp["xi"],    hp["rho"], otype)
 
-                itm = (K < spot and otype == "call") or (K > spot and otype == "put")
+                itm       = (K < spot and otype == "call") or (K > spot and otype == "put")
                 moneyness = round(K / spot, 4)
-
-                # Price differences (model - market)
                 bs_diff     = round(bs_p  - mkt_mid, 3)
                 heston_diff = round(hst_p - mkt_mid, 3)
                 bs_vs_heston= round(bs_p  - hst_p,   3)
@@ -352,25 +366,20 @@ def fetch_option_chain(symbol: str, r: float, max_expiries: int = 6):
                     "Strike":         K,
                     "Moneyness":      moneyness,
                     "ITM":            itm,
-                    # Market
                     "Mkt Bid":        round(mkt_bid,  3) if not np.isnan(mkt_bid)  else np.nan,
                     "Mkt Ask":        round(mkt_ask,  3) if not np.isnan(mkt_ask)  else np.nan,
                     "Mkt Mid":        round(mkt_mid,  3),
                     "Mkt IV (%)":     round(mkt_iv * 100, 2) if not np.isnan(mkt_iv) else np.nan,
-                    # Models
                     "BS Price":       round(bs_p,   3),
                     "Heston Price":   round(hst_p,  3),
                     "BS IV (%)":      round(sigma_bs * 100, 2),
-                    # Differences  (positive = model overprices vs market)
                     "BS − Mkt":       bs_diff,
                     "Heston − Mkt":   heston_diff,
                     "BS − Heston":    bs_vs_heston,
-                    # Greeks (BS)
                     "Delta":          round(g_bs["delta"], 4),
                     "Gamma":          round(g_bs["gamma"], 5),
                     "Theta":          round(g_bs["theta"], 4),
                     "Vega":           round(g_bs["vega"],  4),
-                    # Volume / OI
                     "Volume":         safe_float(opt_row.get("volume"),       0),
                     "Open Interest":  safe_float(opt_row.get("openInterest"), 0),
                 })
@@ -418,7 +427,7 @@ def place_order(symbol, otype, strike, expiry, direction, qty, price, model):
         if new_qty == 0:
             del pf["positions"][label]
         else:
-            total_cost    = pos["avg_price"] * abs(pos["qty"]) + price * qty
+            total_cost       = pos["avg_price"] * abs(pos["qty"]) + price * qty
             pos["avg_price"] = total_cost / abs(new_qty)
             pos["qty"]       = new_qty
     else:
@@ -507,26 +516,37 @@ def chart_greeks(df, greek, otype, spot):
                       xaxis_title="Strike", yaxis_title=greek, **PLOTLY_LAYOUT)
     return fig
 
-def chart_stock_history(symbol):
-    try:
-        hist = yf.Ticker(symbol).history(period="3mo", interval="1d")
-        if hist is None or hist.empty:
-            return None
-        if isinstance(hist.columns, pd.MultiIndex):
-            hist.columns = hist.columns.get_level_values(0)
-        hist = hist.loc[:, ~hist.columns.duplicated()].dropna(subset=["Close"]).sort_index()
-        fig = go.Figure(go.Candlestick(
-            x=hist.index,
-            open=hist["Open"], high=hist["High"],
-            low=hist["Low"],   close=hist["Close"],
-            increasing_line_color="#00c896",
-            decreasing_line_color="#ff4d6a",
-        ))
-        fig.update_layout(title=f"{symbol} — 3-Month Price History",
-                          xaxis_rangeslider_visible=False, **PLOTLY_LAYOUT)
-        return fig
-    except Exception:
+def chart_stock_history(symbol: str):
+    """Plot price history from saved CSV."""
+    hist = load_price_history(symbol)
+    if hist is None or hist.empty:
         return None
+    if "Close" not in hist.columns:
+        close_col = next((c for c in hist.columns if c.lower() == "close"), None)
+        if close_col is None:
+            return None
+        hist = hist.rename(columns={close_col: "Close"})
+
+    # Need OHLC — use Close for all if only Close available
+    for col in ["Open", "High", "Low"]:
+        if col not in hist.columns:
+            alt = next((c for c in hist.columns if c.lower() == col.lower()), None)
+            if alt:
+                hist = hist.rename(columns={alt: col})
+            else:
+                hist[col] = hist["Close"]
+
+    hist = hist.dropna(subset=["Close"]).sort_index()
+    fig = go.Figure(go.Candlestick(
+        x=hist.index,
+        open=hist["Open"], high=hist["High"],
+        low=hist["Low"],   close=hist["Close"],
+        increasing_line_color="#00c896",
+        decreasing_line_color="#ff4d6a",
+    ))
+    fig.update_layout(title=f"{symbol} — Price History (from saved data)",
+                      xaxis_rangeslider_visible=False, **PLOTLY_LAYOUT)
+    return fig
 
 
 # ─────────────────────────────────────────────────────────────
@@ -572,6 +592,16 @@ def main():
         max_exp = st.slider("Max expiries to load", 2, 8, 4)
 
         st.markdown("---")
+        # Data source info
+        st.markdown("""
+        <div style='background:#1a1d27; border:1px solid #2d3148; border-radius:8px; padding:10px; font-size:11px; color:#6b7280;'>
+        📁 <b style='color:#4f8ef7'>Data Source</b><br>
+        Loaded from GitHub CSV files.<br>
+        Prices reflect download date.
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("---")
         st.markdown("### Paper Portfolio")
         pf   = st.session_state.portfolio
         cash = pf["cash"]
@@ -595,12 +625,17 @@ def main():
             st.rerun()
 
     # ── LOAD DATA ─────────────────────────────────────────────
-    with st.spinner(f"Loading {symbol} option chain from Yahoo Finance..."):
-        df, spot, hv = fetch_option_chain(symbol, R, max_exp)
+    with st.spinner(f"Loading {symbol} data from GitHub..."):
+        df, spot, hv = build_option_chain(symbol, R, max_exp)
 
     if df is None or spot is None:
-        st.error(f"Could not load option chain for **{symbol}**. "
-                 "Check your internet connection or try another ticker.")
+        st.error(
+            f"Could not load data for **{symbol}**. "
+            "Make sure the CSV files for this ticker exist in your GitHub repo under `data/`. "
+            "Check that `data/{symbol}_price_history.csv`, "
+            "`data/options/{symbol}_expiries.csv`, and "
+            "`data/options/{symbol}_calls_YYYY-MM-DD.csv` are all pushed."
+        )
         st.stop()
 
     expiries = sorted(df["Expiry"].unique())
@@ -608,12 +643,12 @@ def main():
     # ── HEADER METRICS ────────────────────────────────────────
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     metrics = [
-        ("SPOT",          f"${spot:.2f}",       "blue"),
-        ("HV30",          f"{hv*100:.1f}%",      ""),
-        ("RISK-FREE",     f"{R*100:.2f}%",        ""),
-        ("EXPIRIES",      str(len(expiries)),     ""),
-        ("CONTRACTS",     str(len(df)),           ""),
-        ("POSITIONS",     str(len(pf["positions"])), ""),
+        ("SPOT",      f"${spot:.2f}",             "blue"),
+        ("HV30",      f"{hv*100:.1f}%",            ""),
+        ("RISK-FREE", f"{R*100:.2f}%",             ""),
+        ("EXPIRIES",  str(len(expiries)),           ""),
+        ("CONTRACTS", str(len(df)),                ""),
+        ("POSITIONS", str(len(pf["positions"])),   ""),
     ]
     for col, (title, val, cls) in zip([c1,c2,c3,c4,c5,c6], metrics):
         col.markdown(f"""
@@ -652,24 +687,18 @@ def main():
         if df_exp.empty:
             st.warning("No data for this selection.")
         else:
-            # Summary stats at top
             avg_bs_diff     = df_exp["BS − Mkt"].mean()
             avg_heston_diff = df_exp["Heston − Mkt"].mean()
             atm_row = df_exp.iloc[(df_exp["Strike"] - spot).abs().argsort()[:1]]
 
             s1, s2, s3, s4 = st.columns(4)
-            s1.metric("ATM Strike",
-                      f"${atm_row['Strike'].values[0]:.0f}")
-            s2.metric("ATM Mkt Mid",
-                      f"${atm_row['Mkt Mid'].values[0]:.3f}")
-            s3.metric("Avg BS Bias",
-                      f"${avg_bs_diff:+.3f}",
+            s1.metric("ATM Strike",    f"${atm_row['Strike'].values[0]:.0f}")
+            s2.metric("ATM Mkt Mid",   f"${atm_row['Mkt Mid'].values[0]:.3f}")
+            s3.metric("Avg BS Bias",   f"${avg_bs_diff:+.3f}",
                       help="Positive = BS overprices vs market on average")
-            s4.metric("Avg Heston Bias",
-                      f"${avg_heston_diff:+.3f}",
+            s4.metric("Avg Heston Bias", f"${avg_heston_diff:+.3f}",
                       help="Positive = Heston overprices vs market on average")
 
-            # Charts
             ch1, ch2 = st.columns(2)
             with ch1:
                 st.plotly_chart(chart_price_comparison(df_exp, sel_otype, spot),
@@ -678,7 +707,6 @@ def main():
                 st.plotly_chart(chart_diff(df_exp, sel_otype, spot),
                                 use_container_width=True)
 
-            # Comparison table
             st.markdown("#### Detailed Comparison Table")
             show_cols = ["Strike", "Moneyness", "Mkt Bid", "Mkt Ask", "Mkt Mid",
                          "Mkt IV (%)", "BS Price", "Heston Price", "BS IV (%)",
@@ -718,7 +746,6 @@ def main():
                 "Diff colour: red = model overprices, blue = model underprices  |  "
                 "Threshold: |diff| > $0.20 bold, |diff| > $0.05 amber"
             )
-
 
     # ════════════════════════════════════════════════
     # TAB 2 — FULL CHAIN
@@ -776,7 +803,6 @@ def main():
         st.dataframe(styled2, use_container_width=True, height=520)
         st.caption(f"{len(dv)} contracts  |  ITM rows highlighted green")
 
-
     # ════════════════════════════════════════════════
     # TAB 3 — CHARTS
     # ════════════════════════════════════════════════
@@ -810,7 +836,6 @@ def main():
         if fig_hist:
             st.plotly_chart(fig_hist, use_container_width=True)
 
-
     # ════════════════════════════════════════════════
     # TAB 4 — TRADE
     # ════════════════════════════════════════════════
@@ -836,12 +861,12 @@ def main():
 
             st.markdown("#### Contract Details")
             d1, d2, d3, d4, d5, d6 = st.columns(6)
-            d1.metric("Market Mid",    f"${row['Mkt Mid']:.3f}")
-            d2.metric("BS Price",      f"${row['BS Price']:.3f}")
-            d3.metric("Heston Price",  f"${row['Heston Price']:.3f}")
-            d4.metric("Mkt IV",        f"{row['Mkt IV (%)']:.2f}%" if not np.isnan(row['Mkt IV (%)']) else "—")
-            d5.metric("Delta",         f"{row['Delta']:.4f}")
-            d6.metric("DTE",           f"{row['DTE']} days")
+            d1.metric("Market Mid",   f"${row['Mkt Mid']:.3f}")
+            d2.metric("BS Price",     f"${row['BS Price']:.3f}")
+            d3.metric("Heston Price", f"${row['Heston Price']:.3f}")
+            d4.metric("Mkt IV",       f"{row['Mkt IV (%)']:.2f}%" if not np.isnan(row['Mkt IV (%)']) else "—")
+            d5.metric("Delta",        f"{row['Delta']:.4f}")
+            d6.metric("DTE",          f"{row['DTE']} days")
 
             exec_price = row[price_col]
             st.info(f"Executing at **{tr_model}** = **${exec_price:.3f}** per share  →  **${exec_price*100:.2f}** per contract")
@@ -868,7 +893,6 @@ def main():
                 else:
                     st.markdown(f"<div class='order-fail'>{msg}</div>",
                                 unsafe_allow_html=True)
-
 
     # ════════════════════════════════════════════════
     # TAB 5 — PORTFOLIO
@@ -934,7 +958,6 @@ def main():
                 else:
                     st.error(msg)
 
-
     # ════════════════════════════════════════════════
     # TAB 6 — ORDER HISTORY
     # ════════════════════════════════════════════════
@@ -947,8 +970,8 @@ def main():
             st.info("No orders yet.")
         else:
             dfo = pd.DataFrame(list(reversed(pf["orders"])))
-            dfo["price"]  = dfo["price"].map("${:.3f}".format)
-            dfo["total"]  = dfo["total"].map("${:,.2f}".format)
+            dfo["price"] = dfo["price"].map("${:.3f}".format)
+            dfo["total"] = dfo["total"].map("${:,.2f}".format)
 
             rename = {"order_id":"ID","timestamp":"Time","symbol":"Ticker",
                       "otype":"Type","strike":"Strike","expiry":"Expiry",
