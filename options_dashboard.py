@@ -622,8 +622,7 @@ def chart_vol_surface(df, spot):
         colorscale=colorscale,
         showscale=True,
         colorbar=dict(
-            title="IV (%)",
-            titlefont=dict(color="#e8eaf0"),
+            title=dict(text="IV (%)", font=dict(color="#e8eaf0")),
             tickfont=dict(color="#e8eaf0"),
             x=1.02,
         ),
