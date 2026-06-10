@@ -23,6 +23,18 @@ import plotly.graph_objects as go
 import plotly.express as px
 import yfinance as yf
 
+
+import time
+
+@st.cache_data(ttl=600)
+def get_ticker_data(ticker):
+    time.sleep(1)  # small delay to avoid rate limits
+    stock = yf.Ticker(ticker)
+    return {
+        "expiries": stock.options,
+        "price": stock.history(period="1d")["Close"].iloc[-1],
+        "info": stock.info
+    }
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
