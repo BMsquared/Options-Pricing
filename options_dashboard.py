@@ -702,10 +702,10 @@ def main():
             ch1, ch2 = st.columns(2)
             with ch1:
                 st.plotly_chart(chart_price_comparison(df_exp, sel_otype, spot),
-                                use_container_width=True)
+                                width="stretch")
             with ch2:
                 st.plotly_chart(chart_diff(df_exp, sel_otype, spot),
-                                use_container_width=True)
+                                width="stretch")
 
             st.markdown("#### Detailed Comparison Table")
             show_cols = ["Strike", "Moneyness", "Mkt Bid", "Mkt Ask", "Mkt Mid",
@@ -740,7 +740,7 @@ def main():
                     "border": "1px solid #2d3148",
                 })
 
-            st.dataframe(styled, use_container_width=True, height=400)
+            st.dataframe(styled, width="stretch", height=400)
             st.caption(
                 "🟢 Green = Market  🔵 Blue = Black-Scholes  🟣 Purple = Heston  |  "
                 "Diff colour: red = model overprices, blue = model underprices  |  "
@@ -800,7 +800,7 @@ def main():
                 "border": "1px solid #2d3148",
             })
 
-        st.dataframe(styled2, use_container_width=True, height=520)
+        st.dataframe(styled2, width="stretch", height=520)
         st.caption(f"{len(dv)} contracts  |  ITM rows highlighted green")
 
     # ════════════════════════════════════════════════
@@ -819,22 +819,23 @@ def main():
         r1, r2 = st.columns(2)
         with r1:
             st.plotly_chart(chart_price_comparison(df_c, chart_otype, spot),
-                            use_container_width=True)
+                            width="stretch",
+                            key=f"price_comparison_{ticker}_{selected_expiry}")
         with r2:
             st.plotly_chart(chart_iv_skew(df, spot),
-                            use_container_width=True)
+                            width="stretch")
 
         r3, r4 = st.columns(2)
         with r3:
             st.plotly_chart(chart_diff(df_c, chart_otype, spot),
-                            use_container_width=True)
+                            width="stretch")
         with r4:
             st.plotly_chart(chart_greeks(df, greek_pick, chart_otype, spot),
-                            use_container_width=True)
+                            width="stretch")
 
         fig_hist = chart_stock_history(symbol)
         if fig_hist:
-            st.plotly_chart(fig_hist, use_container_width=True)
+            st.plotly_chart(fig_hist, width="stretch")
 
     # ════════════════════════════════════════════════
     # TAB 4 — TRADE
@@ -929,7 +930,7 @@ def main():
                              "MktVal":"${:,.2f}","UnrPnL":"${:+,.2f}","PnLPct":"{:+.1f}%"})
                    .set_properties(**{"background-color":"#1a1d27","color":"#e8eaf0",
                                       "border":"1px solid #2d3148"}),
-                use_container_width=True,
+                width="stretch",
             )
 
             tp  = sum(r["UnrPnL"] for r in rows)
@@ -988,7 +989,7 @@ def main():
                    .applymap(dir_color, subset=["Dir"])
                    .set_properties(**{"background-color":"#1a1d27","color":"#e8eaf0",
                                       "border":"1px solid #2d3148"}),
-                use_container_width=True, height=500,
+                width="stretch"True, height=500,
             )
             st.caption(f"{len(pf['orders'])} total orders")
 
