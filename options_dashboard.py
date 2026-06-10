@@ -577,19 +577,19 @@ def main():
 
     # ── SIDEBAR ───────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## ⬡ Options Dashboard")
-        st.markdown("*BS & Heston vs Market*")
+        st.markdown("## Options Dashboard")
+        st.markdown("*Black-Scholes & Heston (1995) vs Market*")
         st.markdown("---")
 
         symbol = st.selectbox("Stock", POPULAR_TICKERS)
-        custom = st.text_input("Custom ticker (overrides above):").upper().strip()
-        if custom:
-            symbol = custom
+        # custom = st.text_input("Custom ticker (overrides above):").upper().strip()
+        #if custom:
+           # symbol = custom
 
         st.markdown("---")
-        r_pct = st.slider("Risk-Free Rate (%)", 1.0, 10.0, 5.0, 0.25)
-        R = r_pct / 100
-        max_exp = st.slider("Max expiries to load", 2, 8, 4)
+        #r_pct = st.slider("Risk-Free Rate (%)", 1.0, 10.0, 5.0, 0.25)
+        R = 5 / 100
+        #max_exp = st.slider("Max expiries to load", 2, 8, 4)
 
         st.markdown("---")
         # Data source info
@@ -641,11 +641,10 @@ def main():
     expiries = sorted(df["Expiry"].unique())
 
     # ── HEADER METRICS ────────────────────────────────────────
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4, c5 = st.columns(5)
     metrics = [
         ("SPOT",      f"${spot:.2f}",             "blue"),
         ("HV30",      f"{hv*100:.1f}%",            ""),
-        ("RISK-FREE", f"{R*100:.2f}%",             ""),
         ("EXPIRIES",  str(len(expiries)),           ""),
         ("CONTRACTS", str(len(df)),                ""),
         ("POSITIONS", str(len(pf["positions"])),   ""),
