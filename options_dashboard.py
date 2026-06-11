@@ -65,7 +65,40 @@ st.markdown("""
     .order-success { background:#0d2e1f; border:1px solid #00c896; border-radius:6px; padding:8px 14px; color:#00c896; font-weight:600; }
     .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
+/* Force sidebar toggle button to always be visible */
+    [data-testid="collapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: fixed !important;
+        top: 14px !important;
+        left: 14px !important;
+        z-index: 999999 !important;
+        background: #1a1d27 !important;
+        border: 1px solid #2d3148 !important;
+        border-radius: 6px !important;
+        padding: 4px !important;
+    }
 
+    /* Keep sidebar itself visible when open */
+    [data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        min-width: 260px !important;
+        background-color: #1a1d27 !important;
+    }
+
+    /* Push main content right so sidebar doesn't overlap it */
+    [data-testid="stSidebar"][aria-expanded="true"] ~ 
+    [data-testid="stAppViewContainer"] > .main {
+        margin-left: 260px;
+    }
+
+    /* Remove the sticky-title if it's covering the toggle */
+    .sticky-title {
+        position: relative !important;
+        z-index: 1 !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
