@@ -26,7 +26,8 @@ import plotly.express as px
 # GITHUB DATA CONFIG
 # ─────────────────────────────────────────────────────────────
 
-GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/data"
+import os
+DATA_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -77,8 +78,7 @@ PLOTLY_LAYOUT = dict(
     legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
 )
 
-
-POPULAR_TICKERS = ["AAPL","MSFT","GOOGL","TSLA","NVDA","META","SPY"]
+POPULAR_TICKERS = ["AAPL","MSFT","GOOGL","AMZN","TSLA","NVDA","META","SPY","QQQ","JPM"]
 
 HESTON_PARAMS = {
     "AAPL": dict(kappa=2.0, theta_h=0.06, xi=0.40, rho=-0.50),
@@ -102,7 +102,7 @@ DEFAULT_HESTON = dict(kappa=2.0, theta_h=0.06, xi=0.40, rho=-0.50)
 @st.cache_data(show_spinner=False)
 def load_price_history(symbol: str) -> pd.DataFrame | None:
     """Load price history CSV from GitHub."""
-    url = f"{GITHUB_BASE}/{symbol}_price_history.csv"
+    url = f"{DATA_BASE}/{symbol}_price_history.csv"
     try:
         df = pd.read_csv(url, index_col=0, parse_dates=True)
         if isinstance(df.columns, pd.MultiIndex):
@@ -116,7 +116,7 @@ def load_price_history(symbol: str) -> pd.DataFrame | None:
 @st.cache_data(show_spinner=False)
 def load_expiries(symbol: str) -> list:
     """Load available expiry dates from GitHub index CSV."""
-    url = f"{GITHUB_BASE}/options/{symbol}_expiries.csv"
+    url = f"{DATA_BASE}/options/{symbol}_expiries.csv"
     try:
         df = pd.read_csv(url)
         return sorted(df["expiry"].tolist())
@@ -127,8 +127,8 @@ def load_expiries(symbol: str) -> list:
 @st.cache_data(show_spinner=False)
 def load_option_chain(symbol: str, expiry: str) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
     """Load calls and puts CSVs from GitHub for a given expiry."""
-    calls_url = f"{GITHUB_BASE}/options/{symbol}_calls_{expiry}.csv"
-    puts_url  = f"{GITHUB_BASE}/options/{symbol}_puts_{expiry}.csv"
+    calls_url = f"{DATA_BASE}/options/{symbol}_calls_{expiry}.csv"
+    puts_url  = f"{DATA_BASE}/options/{symbol}_puts_{expiry}.csv"
     try:
         calls = pd.read_csv(calls_url)
         puts  = pd.read_csv(puts_url)
@@ -551,11 +551,7 @@ def chart_stock_history(symbol: str):
     
     
 def chart_vol_surface(df, spot):
-    """
-    2D IV smile/skew — BS vs Heston side by side.
-    X-axis: Strike  |  Y-axis: Implied Volatility (%)
-    One line per expiry, coloured consistently across both panels.
-    """
+    """3D volatility surface — BS and Heston side by side."""
     from plotly.subplots import make_subplots
 
     calls = df[df["Type"] == "CALL"].copy()
@@ -563,88 +559,99 @@ def chart_vol_surface(df, spot):
     if calls.empty:
         return None
 
+    # Get unique strikes and expiries
+    strikes  = sorted(calls["Strike"].unique())
     expiries = sorted(calls["Expiry"].unique())
-    colors   = px.colors.qualitative.Plotly
 
+    # Build Z matrices for BS and Heston implied vol
+    # We back out Heston IV from Heston Price using the implied_vol function
+    bs_z     = []
+    heston_z = []
+
+    for exp in expiries:
+        bs_row     = []
+        heston_row = []
+        exp_data   = calls[calls["Expiry"] == exp]
+
+        for K in strikes:
+            row = exp_data[exp_data["Strike"] == K]
+            if row.empty:
+                bs_row.append(np.nan)
+                heston_row.append(np.nan)
+            else:
+                r         = row.iloc[0]
+                T         = max(r["DTE"] / 365, 1/365)
+                bs_row.append(r["BS IV (%)"])
+
+                # Back out Heston IV from Heston price
+                heston_iv = implied_vol(r["Heston Price"], spot, K, T, 0.05, "call")
+                heston_row.append(heston_iv * 100 if not np.isnan(heston_iv) else np.nan)
+
+        bs_z.append(bs_row)
+        heston_z.append(heston_row)
+
+    bs_z     = np.array(bs_z,     dtype=float)
+    heston_z = np.array(heston_z, dtype=float)
+
+    # Build side-by-side subplots
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=("Black-Scholes IV Smile", "Heston IV Smile"),
-        horizontal_spacing=0.08,
+        subplot_titles=("Black-Scholes IV Surface", "Heston IV Surface"),
+        specs=[[{"type": "surface"}, {"type": "surface"}]],
+        horizontal_spacing=0.05,
     )
 
-    for i, exp in enumerate(expiries):
-        grp   = calls[calls["Expiry"] == exp].sort_values("Strike")
-        color = colors[i % len(colors)]
-        dte   = grp["DTE"].iloc[0]
-        label = f"{exp} ({dte}d)"
+    # Shared colorscale
+    colorscale = [
+        [0.0,  "#0d1b4b"],
+        [0.25, "#1a3a8f"],
+        [0.5,  "#4f8ef7"],
+        [0.75, "#b07eff"],
+        [1.0,  "#ff4d6a"],
+    ]
 
-        # BS panel (left)
-        fig.add_trace(go.Scatter(
-            x=grp["Strike"],
-            y=grp["BS IV (%)"],
-            mode="lines+markers",
-            name=label,
-            legendgroup=label,
-            line=dict(color=color, width=2),
-            marker=dict(size=4),
-            showlegend=True,
-        ), row=1, col=1)
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=bs_z,
+        colorscale=colorscale,
+        showscale=False,
+        opacity=0.9,
+        name="BS Surface",
+    ), row=1, col=1)
 
-        # Heston panel (right) - back out IV from Heston price
-        heston_ivs = []
-        for _, r in grp.iterrows():
-            T  = max(r["DTE"] / 365, 1/365)
-            iv = implied_vol(r["Heston Price"], spot, r["Strike"], T, 0.05, "call")
-            heston_ivs.append(iv * 100 if not np.isnan(iv) else np.nan)
-
-        fig.add_trace(go.Scatter(
-            x=grp["Strike"],
-            y=heston_ivs,
-            mode="lines+markers",
-            name=label,
-            legendgroup=label,
-            line=dict(color=color, width=2),
-            marker=dict(size=4),
-            showlegend=False,
-        ), row=1, col=2)
-
-    # Spot line on both panels
-    for col_num in [1, 2]:
-        fig.add_vline(
-            x=spot,
-            line_dash="dot",
-            line_color="#f5a623",
-            annotation_text=f"Spot ${spot:.0f}",
-            annotation_font_color="#f5a623",
-            annotation_position="top",
-            row=1, col=col_num,
-        )
-
-    shared_axis = dict(
-        gridcolor="#2d3148",
-        zerolinecolor="#2d3148",
-        fixedrange=True,
-    )
+    fig.add_trace(go.Surface(
+        x=strikes, y=expiries, z=heston_z,
+        colorscale=colorscale,
+        showscale=True,
+        colorbar=dict(
+            title="IV (%)",
+            titlefont=dict(color="#e8eaf0"),
+            tickfont=dict(color="#e8eaf0"),
+            x=1.02,
+        ),
+        opacity=0.9,
+        name="Heston Surface",
+    ), row=1, col=2)
 
     fig.update_layout(
-        title="Implied Volatility Smile — Black-Scholes vs Heston (Calls)",
+        title="Implied Volatility Surface — Black-Scholes vs Heston",
         paper_bgcolor="#0f1117",
         plot_bgcolor="#1a1d27",
         font=dict(color="#e8eaf0", size=11),
-        height=480,
-        margin=dict(l=50, r=20, t=60, b=50),
-        legend=dict(
-            bgcolor="#1a1d27",
-            bordercolor="#2d3148",
-            title=dict(text="Expiry"),
+        height=550,
+        margin=dict(l=10, r=10, t=60, b=10),
+        legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
+        scene=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+        ),
+        scene2=dict(
+            xaxis=dict(title="Strike",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            yaxis=dict(title="Expiry",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
+            zaxis=dict(title="IV (%)",  gridcolor="#2d3148", backgroundcolor="#1a1d27"),
         ),
     )
-
-    fig.update_xaxes(**shared_axis, title_text="Strike ($)")
-    fig.update_yaxes(**shared_axis, title_text="Implied Volatility (%)")
-
     return fig
-
 
 
 # ─────────────────────────────────────────────────────────────
@@ -675,43 +682,19 @@ def main():
 
     # ── SIDEBAR ───────────────────────────────────────────────
     with st.sidebar:
-        #st.markdown("## Options Dashboard")
-        #st.markdown("*Black-Scholes & Heston (1993) vs Market*")
+        st.markdown("## Options Dashboard")
+        st.markdown("*Black-Scholes & Heston (1995) vs Market*")
         st.markdown("---")
 
         symbol = st.selectbox("Stock", POPULAR_TICKERS)
         # custom = st.text_input("Custom ticker (overrides above):").upper().strip()
         #if custom:
            # symbol = custom
-           
-        st.markdown("---")
-        st.markdown("""
-        <div style='background:#1a1d27; border:1px solid #2d3148; border-radius:8px; padding:12px 14px; font-size:11px;'>
-            <div style='color:#4f8ef7; font-weight:700; margin-bottom:8px; font-size:12px;'>📖 Glossary</div>
-            <div style='color:#6b7280; line-height:2;'>
-                <span style='color:#e8eaf0; font-weight:600;'>HV30</span> — 30-day Historical Volatility<br>
-                <span style='color:#e8eaf0; font-weight:600;'>IV</span> — Implied Volatility<br>
-                <span style='color:#e8eaf0; font-weight:600;'>BS</span> — Black-Scholes Model (1973)<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Heston</span> — Heston Stochastic Vol Model (1993)<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Mkt Mid</span> — Market Mid Price (Bid+Ask)/2<br>
-                <span style='color:#e8eaf0; font-weight:600;'>DTE</span> — Days to Expiry<br>
-                <span style='color:#e8eaf0; font-weight:600;'>ITM</span> — In The Money<br>
-                <span style='color:#e8eaf0; font-weight:600;'>OTM</span> — Out of The Money<br>
-                <span style='color:#e8eaf0; font-weight:600;'>ATM</span> — At The Money<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Delta (Δ)</span> — Price sensitivity to spot<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Gamma (Γ)</span> — Rate of change of Delta<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Theta (Θ)</span> — Time decay per day<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Vega (ν)</span> — Sensitivity to volatility<br>
-                <span style='color:#e8eaf0; font-weight:600;'>BS − Mkt</span> — BS model price minus market price<br>
-                <span style='color:#e8eaf0; font-weight:600;'>Heston − Mkt</span> — Heston price minus market price<br>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
         st.markdown("---")
         #r_pct = st.slider("Risk-Free Rate (%)", 1.0, 10.0, 5.0, 0.25)
         R = 5 / 100
-        max_exp = 4
+        max_exp = 5
 
         st.markdown("---")
         # Data source info
