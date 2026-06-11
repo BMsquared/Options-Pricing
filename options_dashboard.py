@@ -76,8 +76,8 @@ st.markdown("""
         padding: 6px 24px 5px 24px;
         border-bottom: 1px solid #2d3148;
         display: flex;
-        align-items: center;
-        gap: 14px;
+        flex-direction: column;      /* ← stack title and subtitle vertically */
+        justify-content: center;
     }
 
     /* Push main content down so nothing hides under sticky bar */
@@ -97,15 +97,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div class='sticky-title'>
+<div class='sticky-title' style='flex-direction: column; align-items: flex-start; padding: 6px 24px 5px 24px;'>
     <span style='color:#4f8ef7; font-size:20px; font-weight:800; letter-spacing:1px;'>
         ⬡ Options Pricing Dashboard
     </span>
-    <span style='color:#6b7280; font-size:12px;'>
-        Black-Scholes (1973) &amp; Heston (1993) vs Real Market Prices
+    <span style='color:#6b7280; font-size:11px; font-style:italic; margin-top:1px;'>
+        Black-Scholes (1973) & Heston (1993) vs Real Market Prices
     </span>
 </div>
 """, unsafe_allow_html=True)
+
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="#0f1117",
     plot_bgcolor="#1a1d27",
