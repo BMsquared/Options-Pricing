@@ -95,22 +95,34 @@ st.markdown("""
     header                     { visibility: hidden !important; }
     
      /* Keep sidebar toggle visible when collapsed */        ← ADD HERE
-    /* 1. Target the outer wrapping container holding the arrow */
+    /* 1. Force the global header wrapper to sit on top of all page content */
+    [data-testid="stHeader"] {
+        z-index: 999999 !important;
+        background-color: transparent !important;
+    }
+
+    /* 2. Elevate the specific collapse button container */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
+        z-index: 1000000 !important; /* Higher than the header and main content */
         color: #4f8ef7 !important;
-        background-color: transparent !important;
-        z-index: 999999 !important; /* Forces it to sit on top of everything */
-        left: 10px !important;       /* Ensures it isn't tucked behind the viewport boundary */
-        top: 10px !important;
+        background-color: rgba(255, 255, 255, 0.8) !important; /* Gives it a slight backdrop if hidden by dark images */
+        border-radius: 4px !important;
+        padding: 4px !important;
     }
     
-    /* 2. Target the inner SVG icon itself in case the arrow path is hidden */
+    /* 3. Ensure the arrow icon inside retains its color and layout */
     [data-testid="collapsedControl"] svg {
         fill: #4f8ef7 !important;
         display: block !important;
         visibility: visible !important;
+    }
+    
+    /* 4. Optional: If your content pushes up too high, add a safety padding to the top of the main body */
+    [data-testid="stAppViewBlockContainer"] {
+        padding-top: 4rem !important;
+    }
     }
 </style>
 """, unsafe_allow_html=True)
