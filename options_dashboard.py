@@ -68,6 +68,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<div style='text-align:center; padding: 18px 0 8px 0;'>
+    <span style='color:#4f8ef7; font-size:26px; font-weight:800; letter-spacing:1px;'>
+        ⬡ Options Pricing Dashboard
+    </span><br>
+    <span style='color:#6b7280; font-size:12px; font-style:italic;'>
+        Black-Scholes (1973) & Heston (1993) vs Real Market Prices
+    </span>
+</div>
+""", unsafe_allow_html=True)
+
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="#0f1117",
     plot_bgcolor="#1a1d27",
