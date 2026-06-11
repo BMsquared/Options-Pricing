@@ -81,26 +81,6 @@ st.markdown("""
         justify-content: center;
     }
 
-    /* Push main content down below sticky bar */
-    .block-container {
-        padding-top: 56px !important;
-    }
-
-    /* Hide deploy/fork button and footer only */
-    [data-testid="stToolbar"] { display: none !important; }
-    .stAppDeployButton         { display: none !important; }
-    #MainMenu                  { display: none !important; }
-    footer                     { display: none !important; }
-
-    /* Sidebar toggle — always visible */
-    [data-testid="collapsedControl"] {
-        display:    flex !important;
-        visibility: visible !important;
-        opacity:    1 !important;
-    }
-    [data-testid="collapsedControl"] svg {
-        fill: #4f8ef7 !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
