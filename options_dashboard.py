@@ -77,7 +77,8 @@ PLOTLY_LAYOUT = dict(
     legend=dict(bgcolor="#1a1d27", bordercolor="#2d3148"),
 )
 
-POPULAR_TICKERS = ["AAPL","MSFT","GOOGL","AMZN","TSLA","NVDA","META","SPY","QQQ","JPM"]
+
+POPULAR_TICKERS = ["AAPL","MSFT","GOOGL","TSLA","NVDA","META","SPY"]
 
 HESTON_PARAMS = {
     "AAPL": dict(kappa=2.0, theta_h=0.06, xi=0.40, rho=-0.50),
@@ -675,7 +676,7 @@ def main():
     # ── SIDEBAR ───────────────────────────────────────────────
     with st.sidebar:
         st.markdown("## Options Dashboard")
-        st.markdown("*Black-Scholes & Heston (1995) vs Market*")
+        st.markdown("*Black-Scholes & Heston (1993) vs Market*")
         st.markdown("---")
 
         symbol = st.selectbox("Stock", POPULAR_TICKERS)
