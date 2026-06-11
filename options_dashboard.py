@@ -93,6 +93,13 @@ st.markdown("""
     #MainMenu                  { display: none !important; }
     footer                     { display: none !important; }
     header                     { visibility: hidden !important; }
+    
+     /* Keep sidebar toggle visible when collapsed */        ← ADD HERE
+    [data-testid="collapsedControl"] {
+        display: block !important;
+        visibility: visible !important;
+        color: #4f8ef7 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
