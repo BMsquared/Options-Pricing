@@ -39,32 +39,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+
 st.markdown("""
-<style>
-    .stApp { background-color: #0f1117; color: #e8eaf0; }
-    .metric-card {
-        background: #1a1d27;
-        border: 1px solid #2d3148;
-        border-radius: 10px;
-        padding: 14px 18px;
-        margin: 4px 0;
-    }
-    .metric-title { color: #6b7280; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-    .metric-value { color: #e8eaf0; font-size: 20px; font-weight: 700; margin-top: 2px; }
-    .green  { color: #00c896 !important; }
-    .red    { color: #ff4d6a !important; }
-    .blue   { color: #4f8ef7 !important; }
-    .purple { color: #b07eff !important; }
-    .section-header {
-        color: #4f8ef7; font-size: 15px; font-weight: 700;
-        margin: 10px 0 6px 0;
-        border-bottom: 1px solid #2d3148;
-        padding-bottom: 5px;
-    }
-    .order-success { background:#0d2e1f; border:1px solid #00c896; border-radius:6px; padding:8px 14px; color:#00c896; font-weight:600; }
-    .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
-    div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
-</style>
+<div style='padding: 10px 0 4px 0;'>
+    <span style='color:#4f8ef7; font-size:28px; font-weight:800; letter-spacing:1px;'>
+        ⬡ Options Pricing Dashboard
+    </span><br>
+    <span style='color:#6b7280; font-size:13px;'>
+        Black-Scholes (1973) & Heston (1993) vs Real Market Prices
+    </span>
+</div>
 """, unsafe_allow_html=True)
 
 PLOTLY_LAYOUT = dict(
