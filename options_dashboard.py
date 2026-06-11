@@ -66,20 +66,6 @@ st.markdown("""
     .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
 
-    /* Sticky title bar — sits above main content only */
-    .sticky-title {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: #0f1117;
-        padding: 6px 24px 5px 24px;
-        border-bottom: 1px solid #2d3148;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
 
 </style>
 """, unsafe_allow_html=True)
