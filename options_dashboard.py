@@ -31,7 +31,6 @@ GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
-
 st.set_page_config(
     page_title="Options Pricing Dashboard",
     page_icon="⬡",
@@ -39,18 +38,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
-
-st.markdown("""
-<div style='padding: 10px 0 4px 0;'>
-    <span style='color:#4f8ef7; font-size:28px; font-weight:800; letter-spacing:1px;'>
-        ⬡ Options Pricing Dashboard
-    </span><br>
-    <span style='color:#6b7280; font-size:13px;'>
-        Black-Scholes (1973) & Heston (1993) vs Real Market Prices
-    </span>
-</div>
-""", unsafe_allow_html=True)
+# ── STYLES + STICKY TITLE ─────────────────────────────────────
 st.markdown("""
 <style>
     .stApp { background-color: #0f1117; color: #e8eaf0; }
@@ -77,41 +65,47 @@ st.markdown("""
     .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
 
-    /* ── ADD YOUR NEW STYLES HERE ── */
+    /* Sticky title — starts after sidebar (~300px) */
     .sticky-title {
         position: fixed;
         top: 0;
-        left: 0;
+        left: 300px;
         right: 0;
         z-index: 9999;
         background: #0f1117;
-        padding: 8px 24px 6px 24px;
+        padding: 6px 24px 5px 24px;
         border-bottom: 1px solid #2d3148;
+        display: flex;
+        align-items: center;
+        gap: 14px;
     }
+
+    /* Push main content down so nothing hides under sticky bar */
     .block-container {
-        padding-top: 64px !important;
+        padding-top: 56px !important;
+        padding-left: 2rem !important;
     }
+
+    /* Hide Streamlit toolbar and footer */
     [data-testid="stToolbar"] { display: none !important; }
     button[kind="header"]      { display: none !important; }
     .stAppDeployButton         { display: none !important; }
     #MainMenu                  { display: none !important; }
     footer                     { display: none !important; }
     header                     { visibility: hidden !important; }
-
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class='sticky-title'>
-    <span style='color:#4f8ef7; font-size:22px; font-weight:800; letter-spacing:1px;'>
+    <span style='color:#4f8ef7; font-size:20px; font-weight:800; letter-spacing:1px;'>
         ⬡ Options Pricing Dashboard
     </span>
-    <span style='color:#6b7280; font-size:12px; margin-left:14px;'>
-        Black-Scholes (1973) & Heston (1993) vs Real Market Prices
+    <span style='color:#6b7280; font-size:12px;'>
+        Black-Scholes (1973) &amp; Heston (1993) vs Real Market Prices
     </span>
 </div>
 """, unsafe_allow_html=True)
-
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="#0f1117",
     plot_bgcolor="#1a1d27",
