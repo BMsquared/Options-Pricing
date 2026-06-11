@@ -95,10 +95,22 @@ st.markdown("""
     header                     { visibility: hidden !important; }
     
      /* Keep sidebar toggle visible when collapsed */        ← ADD HERE
+    /* 1. Target the outer wrapping container holding the arrow */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
         color: #4f8ef7 !important;
+        background-color: transparent !important;
+        z-index: 999999 !important; /* Forces it to sit on top of everything */
+        left: 10px !important;       /* Ensures it isn't tucked behind the viewport boundary */
+        top: 10px !important;
+    }
+    
+    /* 2. Target the inner SVG icon itself in case the arrow path is hidden */
+    [data-testid="collapsedControl"] svg {
+        fill: #4f8ef7 !important;
+        display: block !important;
+        visibility: visible !important;
     }
 </style>
 """, unsafe_allow_html=True)
