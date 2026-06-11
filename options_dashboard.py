@@ -32,7 +32,6 @@ GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
 
-
 st.set_page_config(
     page_title="Options Pricing Dashboard",
     page_icon="⬡",
@@ -67,13 +66,6 @@ st.markdown("""
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown(
-    "<h2 style='color:#4f8ef7; margin-bottom:2px;'>⬡ Options Pricing Dashboard</h2>"
-    "<p style='color:#6b7280; font-size:12px; margin-top:0;'>"
-    "Black-Scholes (1973) &amp; Heston (1993) vs Real Market Prices</p>",
-    unsafe_allow_html=True
-)
 
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="#0f1117",
