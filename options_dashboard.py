@@ -31,6 +31,7 @@ GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
+
 st.set_page_config(
     page_title="Options Pricing Dashboard",
     page_icon="⬡",
@@ -38,7 +39,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── STYLES + STICKY TITLE ─────────────────────────────────────
 st.markdown("""
 <style>
     .stApp { background-color: #0f1117; color: #e8eaf0; }
@@ -65,7 +65,7 @@ st.markdown("""
     .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
 
-    /* Sticky title — starts after sidebar (~300px) */
+    /* Sticky title — starts after sidebar */
     .sticky-title {
         position: fixed;
         top: 0;
@@ -76,7 +76,7 @@ st.markdown("""
         padding: 6px 24px 5px 24px;
         border-bottom: 1px solid #2d3148;
         display: flex;
-        flex-direction: column;      /* ← stack title and subtitle vertically */
+        flex-direction: column;
         justify-content: center;
     }
 
@@ -86,49 +86,40 @@ st.markdown("""
         padding-left: 2rem !important;
     }
 
-    /* Hide Streamlit toolbar and footer */
+    /* Hide Streamlit toolbar and deploy button */
     [data-testid="stToolbar"] { display: none !important; }
     button[kind="header"]      { display: none !important; }
     .stAppDeployButton         { display: none !important; }
     #MainMenu                  { display: none !important; }
     footer                     { display: none !important; }
-    header                     { visibility: hidden !important; }
-    
-     /* Keep sidebar toggle visible when collapsed */        ← ADD HERE
-    /* 1. Force the global header wrapper to sit on top of all page content */
-    [data-testid="stHeader"] {
-        z-index: 999999 !important;
+
+    /* Keep header transparent but visible so toggle arrow works */
+    header {
         background-color: transparent !important;
+        z-index: 999998 !important;
     }
 
-    /* 2. Elevate the specific collapse button container */
+    /* Sidebar toggle arrow — always visible even when sidebar is collapsed */
     [data-testid="collapsedControl"] {
-        display: block !important;
+        display:    flex !important;
         visibility: visible !important;
-        z-index: 1000000 !important; /* Higher than the header and main content */
-        color: #4f8ef7 !important;
-        background-color: rgba(255, 255, 255, 0.8) !important; /* Gives it a slight backdrop if hidden by dark images */
+        opacity:    1 !important;
+        z-index:    999999 !important;
+        background: #1a1d27 !important;
+        border:     1px solid #2d3148 !important;
         border-radius: 4px !important;
-        padding: 4px !important;
+        padding:    4px !important;
     }
-    
-    /* 3. Ensure the arrow icon inside retains its color and layout */
     [data-testid="collapsedControl"] svg {
-        fill: #4f8ef7 !important;
-        display: block !important;
+        fill:       #4f8ef7 !important;
+        display:    block !important;
         visibility: visible !important;
-    }
-    
-    /* 4. Optional: If your content pushes up too high, add a safety padding to the top of the main body */
-    [data-testid="stAppViewBlockContainer"] {
-        padding-top: 4rem !important;
-    }
     }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div class='sticky-title' style='flex-direction: column; align-items: flex-start; padding: 6px 24px 5px 24px;'>
+<div class='sticky-title'>
     <span style='color:#4f8ef7; font-size:20px; font-weight:800; letter-spacing:1px;'>
         ⬡ Options Pricing Dashboard
     </span>
