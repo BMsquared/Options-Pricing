@@ -723,6 +723,30 @@ def main():
         # custom = st.text_input("Custom ticker (overrides above):").upper().strip()
         #if custom:
            # symbol = custom
+           
+        st.markdown("---")
+        st.markdown("""
+        <div style='background:#1a1d27; border:1px solid #2d3148; border-radius:8px; padding:12px 14px; font-size:11px;'>
+            <div style='color:#4f8ef7; font-weight:700; margin-bottom:8px; font-size:12px;'>📖 Glossary</div>
+            <div style='color:#6b7280; line-height:2;'>
+                <span style='color:#e8eaf0; font-weight:600;'>HV30</span> — 30-day Historical Volatility<br>
+                <span style='color:#e8eaf0; font-weight:600;'>IV</span> — Implied Volatility<br>
+                <span style='color:#e8eaf0; font-weight:600;'>BS</span> — Black-Scholes Model (1973)<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Heston</span> — Heston Stochastic Vol Model (1993)<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Mkt Mid</span> — Market Mid Price (Bid+Ask)/2<br>
+                <span style='color:#e8eaf0; font-weight:600;'>DTE</span> — Days to Expiry<br>
+                <span style='color:#e8eaf0; font-weight:600;'>ITM</span> — In The Money<br>
+                <span style='color:#e8eaf0; font-weight:600;'>OTM</span> — Out of The Money<br>
+                <span style='color:#e8eaf0; font-weight:600;'>ATM</span> — At The Money<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Delta (Δ)</span> — Price sensitivity to spot<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Gamma (Γ)</span> — Rate of change of Delta<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Theta (Θ)</span> — Time decay per day<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Vega (ν)</span> — Sensitivity to volatility<br>
+                <span style='color:#e8eaf0; font-weight:600;'>BS − Mkt</span> — BS model price minus market price<br>
+                <span style='color:#e8eaf0; font-weight:600;'>Heston − Mkt</span> — Heston price minus market price<br>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("---")
         #r_pct = st.slider("Risk-Free Rate (%)", 1.0, 10.0, 5.0, 0.25)
