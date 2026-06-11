@@ -715,8 +715,8 @@ def main():
 
     # ── SIDEBAR ───────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## Options Dashboard")
-        st.markdown("*Black-Scholes & Heston (1993) vs Market*")
+        #st.markdown("## Options Dashboard")
+        #st.markdown("*Black-Scholes & Heston (1993) vs Market*")
         st.markdown("---")
 
         symbol = st.selectbox("Stock", POPULAR_TICKERS)
