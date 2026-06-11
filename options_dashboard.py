@@ -32,6 +32,7 @@ GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────
 
+
 st.set_page_config(
     page_title="Options Pricing Dashboard",
     page_icon="⬡",
@@ -65,13 +66,13 @@ st.markdown("""
     .order-fail    { background:#2e0d14; border:1px solid #ff4d6a; border-radius:6px; padding:8px 14px; color:#ff4d6a; font-weight:600; }
     div[data-testid="stDataFrame"] { border:1px solid #2d3148; border-radius:8px; }
 
-    /* Sticky title */
+    /* Sticky title bar — sits above main content only */
     .sticky-title {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 9999;
+        z-index: 100;
         background: #0f1117;
         padding: 6px 24px 5px 24px;
         border-bottom: 1px solid #2d3148;
@@ -80,29 +81,25 @@ st.markdown("""
         justify-content: center;
     }
 
-    /* Push main content down */
+    /* Push main content down below sticky bar */
     .block-container {
         padding-top: 56px !important;
-        padding-left: 2rem !important;
     }
 
-    /* Hide toolbar only — leave header intact for sidebar toggle */
+    /* Hide deploy/fork button and footer only */
     [data-testid="stToolbar"] { display: none !important; }
     .stAppDeployButton         { display: none !important; }
     #MainMenu                  { display: none !important; }
     footer                     { display: none !important; }
 
-    /* Sidebar toggle arrow always visible */
+    /* Sidebar toggle — always visible */
     [data-testid="collapsedControl"] {
         display:    flex !important;
         visibility: visible !important;
         opacity:    1 !important;
-        z-index:    999999 !important;
     }
     [data-testid="collapsedControl"] svg {
-        fill:       #4f8ef7 !important;
-        display:    block !important;
-        visibility: visible !important;
+        fill: #4f8ef7 !important;
     }
 </style>
 """, unsafe_allow_html=True)
