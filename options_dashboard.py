@@ -27,7 +27,7 @@ import plotly.express as px
 # ─────────────────────────────────────────────────────────────
 
 import os
-DATA_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+GITHUB_BASE = "https://raw.githubusercontent.com/BMsquared/Options-Pricing/main/data"
 
 # ─────────────────────────────────────────────────────────────
 # PAGE CONFIG
